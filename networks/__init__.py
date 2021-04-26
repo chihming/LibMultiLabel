@@ -2,6 +2,7 @@ import torch.nn as nn
 
 from networks.caml import CAML
 from networks.kim_cnn import KimCNN
+from networks.kim_cnn_v2 import KimCNNv2
 from networks.xml_cnn import XMLCNN
 
 
