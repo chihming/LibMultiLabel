@@ -136,8 +136,11 @@ val_metric: P@1
 
 If `test_path` is specified or `DATA_DIR/test.txt` exists, the model with the highest `val_metric` will be evaluated after training.
 
-### Evaluation
-In the evaluation procedure, you can evaluate a model from a pre-obtained checkpoint.
+### Prediction
+To deploy/evaluate a model (i.e., a pre-obtained checkpoint), you can predict a test set by the following command.
 ```
-python3 main.py --config CONFIG_PATH --eval --load_checkpoint CHECKPOINT_PATH --test_path TEST_DATA_PATH
+python3 main.py --eval --config CONFIG_PATH --load_checkpoint CHECKPOINT_PATH --test_path TEST_DATA_PATH --save_k_predictions K --predict_out_path PREDICT_OUT_PATH
 ```
+- Use `--save_k_predictions` to save the top K predictions for each instance in the test set. K=100 if not specified.
+- Use `--predict_out_path` to specify the file for storing the predicted top-K labels/scores.
+

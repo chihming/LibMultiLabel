@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.metrics import f1_score
 from tqdm import tqdm
 
-from metrics import macro_f1, precision_recall_at_ks
+from metrics import another_macro_f1, precision_recall_at_ks
 from utils import Timer, dump_log, dump_top_k_prediction
 
 
@@ -30,8 +30,8 @@ def evaluate(config, model, dataset_loader, split='val', dump=True):
     if dump:
         dump_log(config, metrics, split)
 
-    if split == 'test' and config.save_predict_k > 0:
-        dump_top_k_prediction(config, model.classes, eval_metric.get_y_pred(), k=config.save_predict_k)
+    if split == 'test' and config.save_k_predictions > 0:
+        dump_top_k_prediction(config, model.classes, eval_metric.get_y_pred(), k=config.save_k_predictions)
 
     return metrics
 
@@ -58,7 +58,7 @@ class MultiLabelMetrics():
             '# Instance': len(y_true),
             'Micro-F1': f1_score(y_true, y_pred > threshold, average='micro'),
             'Macro-F1': f1_score(y_true, y_pred > threshold, average='macro'),
-            'Macro*-F1': macro_f1(y_true, y_pred > threshold) # caml's macro-f1
+            'Macro*-F1': another_macro_f1(y_true, y_pred > threshold) # caml's macro-f1
         }
 
         # add metrics like P@k, R@k to the result dict
