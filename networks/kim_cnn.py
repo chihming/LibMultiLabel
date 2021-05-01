@@ -10,27 +10,39 @@ class KimCNN(BaseModel):
     def __init__(self, config, embed_vecs):
         super(KimCNN, self).__init__(config, embed_vecs)
 
-        num_filter_maps = config.num_filter_maps
-        filter_size = config.filter_size
+        self.filter_sizes = config.filter_sizes
+        emb_dim = embed_vecs.shape[1]
+        num_filter_per_size = config.num_filter_per_size
 
-        # initialize conv layer as in 2.1
-        self.conv = nn.Conv1d(embed_vecs.shape[1], num_filter_maps, kernel_size=filter_size)
-        xavier_uniform_(self.conv.weight)
+        self.convs = nn.ModuleList()
 
-        # linear output
-        self.fc = nn.Linear(num_filter_maps, config.num_classes)
-        xavier_uniform_(self.fc.weight)
+        for filter_size in self.filter_sizes:
+            conv = nn.Conv1d(
+                in_channels=emb_dim,
+                out_channels=num_filter_per_size,
+                kernel_size=filter_size)
+            self.convs.append(conv)
+        conv_output_size = num_filter_per_size * len(self.filter_sizes)
+
+        self.linear = nn.Linear(conv_output_size, config.num_classes)
 
     def forward(self, text):
-        # embedding
-        x = self.embedding(text)
-        x = self.embed_drop(x)
-        x = x.transpose(1, 2)
+        h = self.embedding(text) # (batch_size, length, embed_dim)
+        h = self.embed_drop(h)
+        h = h.transpose(1, 2) # (batch_size, embed_dim, length)
 
-        # conv/max-pooling
-        c = self.conv(x)
-        x = F.max_pool1d(torch.tanh(c), kernel_size=c.size()[2])
-        x = x.squeeze(dim=2)
+        h_list = []
+        for conv in self.convs:
+            h_sub = conv(h) # (batch_size, num_filter, length)
+            h_sub = F.max_pool1d(h_sub, kernel_size=h_sub.size()[2]) # (batch_size, num_filter, 1)
+            h_sub = h_sub.view(h_sub.shape[0], -1) # (batch_size, num_filter)
+            h_list.append(h_sub)
+
+        if len(self.filter_sizes) > 1:
+            h = torch.cat(h_list, 1)
+        else:
+            h = h_list[0]
+        h = self.activation(h) # (batch_size, total_num_filter)
 
         # linear output
         x = self.fc(x)

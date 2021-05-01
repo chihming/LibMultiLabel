@@ -13,7 +13,7 @@ from tqdm import tqdm
 import data_utils
 import networks
 from evaluate import evaluate
-from utils.utils import (AverageMeter, Timer)
+from utils import AverageMeter, Timer
 
 
 class Model(object):
@@ -57,9 +57,9 @@ class Model(object):
         if ckpt:
             self.network.load_state_dict(ckpt['state_dict'])
             self.optimizer.load_state_dict(ckpt['optimizer'])
-        else:
-            init_weights = networks.get_weight_init_func(config)
-            self.network.apply(init_weights)
+        elif config.init_weight is not None:
+            init_weight = networks.get_init_weight_func(config)
+            self.network.apply(init_weight)
 
     def init_optimizer(self, optimizer=None):
         """Initialize an optimizer for the free parameters of the network.
@@ -102,7 +102,7 @@ class Model(object):
                 logging.info('Start predicting a validation set')
                 val_metrics = evaluate(self.config, self, val_loader)
 
-                if val_metrics[self.config.val_metric] >= self.best_metric:
+                if val_metrics[self.config.val_metric] > self.best_metric:
                     self.best_metric = val_metrics[self.config.val_metric]
                     self.save(epoch, is_best=True)
                     patience = self.config.patience

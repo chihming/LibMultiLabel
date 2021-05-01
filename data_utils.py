@@ -15,7 +15,7 @@ from torchtext.vocab import Vocab
 from torchtext.data.utils import get_tokenizer
 
 UNK = Vocab.UNK
-PAD = '<pad>'
+PAD = '**PAD**'
 
 UNK = Vocab.UNK
 PAD = '<pad>'
@@ -115,7 +115,7 @@ def load_or_build_text_dict(config, dataset):
         with open(config.vocab_file, 'r') as fp:
             vocab_list = [PAD] + [vocab.strip() for vocab in fp.readlines()]
         vocabs = Vocab(collections.Counter(vocab_list), specials=[UNK],
-                       min_freq=1, specials_first=False)
+                       min_freq=1, specials_first=False) # specials_first=False to keep PAD index 0
     else:
         counter = collections.Counter()
         for data in dataset:
