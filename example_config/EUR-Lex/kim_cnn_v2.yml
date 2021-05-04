@@ -1,7 +1,6 @@
 # data
 data_dir: data/EUR-Lex
 data_name: EUR-Lex
-dev_size: 0.25
 min_vocab_freq: 1
 max_seq_length: 500
 
@@ -21,15 +20,11 @@ val_metric: P@1
 
 # model
 model_name: KimCNNv2
-num_filter_map: 128 # filter channels
+num_filter_per_size: 128 # filter channels
 filter_sizes: [2, 4, 8]
-strides: [1, 1, 1]
 hidden_dim: 512
 dropout: 0.5
 dropout2: 0.5
 
 # pretrained vocab / embeddings
 embed_file: glove.6B.300d
-
-# others
-data_workers: 4
