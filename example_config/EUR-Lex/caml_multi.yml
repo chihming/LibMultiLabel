@@ -1,0 +1,32 @@
+# data
+data_dir: data/EUR-Lex
+data_name: EUR-Lex
+min_vocab_freq: 1
+max_seq_length: 500
+
+# train
+seed: 1337
+epochs: 100
+batch_size: 64
+optimizer: adam
+learning_rate: 0.0003
+weight_decay: 0
+patience: 5
+
+# eval
+eval_batch_size: 256
+monitor_metrics: [P@1, P@3, P@5]
+val_metric: P@1
+
+# model
+model_name: CAML
+num_filter_per_size: 512 # filter channels
+pool_size: 2
+filter_sizes: [2, 4, 8]
+hidden_dim: 128
+dropout: 0.6
+init_weight: null
+activation: tanh
+
+# pretrained vocab / embeddings
+embed_file: glove.6B.300d
