@@ -3,31 +3,22 @@ import glob
 import itertools
 import logging
 import os
-import time
 from datetime import datetime
 from pathlib import Path
 
 import pytorch_lightning as pl
-import ray
 import yaml
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.model_checkpoint import ModelCheckpoint
 from pytorch_lightning.utilities.parsing import AttributeDict
 from ray import tune
 
-from LibMultiLabel.libmultilabel import data_utils
-from LibMultiLabel.libmultilabel.model import Model
-from LibMultiLabel.libmultilabel.utils import dump_log, init_device, set_seed
+from .libmultilabel import data_utils
+from .libmultilabel.model import Model
+from .libmultilabel.utils import dump_log, init_device, set_seed
 
 logging.basicConfig(level=logging.INFO,
                     format='%(asctime)s %(levelname)s:%(message)s')
-
-ray.init()
-
-print('''This cluster consists of
-    {} nodes in total
-    {} CPU resources in total
-'''.format(len(ray.nodes()), ray.cluster_resources()['CPU']))
 
 
 class Trainable(tune.Trainable):
@@ -155,55 +146,55 @@ def load_static_data(config):
     }
 
 
-# __main__
-parser = argparse.ArgumentParser()
-parser.add_argument(
-    '--config', help='Path to configuration file (default: %(default)s). Please specify a config with all arguments in LibMultiLabel/main.py::get_config.')
-parser.add_argument('--cpu_count', type=int, default=4,
-                    help='Number of CPU per trial (default: %(default)s)')
-parser.add_argument('--gpu_count', type=int, default=1,
-                    help='Number of GPU per trial (default: %(default)s)')
-parser.add_argument('--local_dir', default=os.getcwd(),
-                    help='Directory to save training results of tune (default: %(default)s)')
-parser.add_argument('--num_samples', type=int, default=50,
-                    help='Number of running trials. If the search space is `grid_search`, the same grid will be repeated `num_samples` times. (default: %(default)s)')
-parser.add_argument('--mode', default='max', choices=['min', 'max'],
-                    help='Determines whether objective is minimizing or maximizing the metric attribute. (default: %(default)s)')
-parser.add_argument('--search_alg', default=None, choices=['basic_variant', 'bayesopt', 'optuna'],
-                    help='Search algorithms (default: %(default)s)')
-args = parser.parse_args()
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        '--config', help='Path to configuration file (default: %(default)s). Please specify a config with all arguments in LibMultiLabel/main.py::get_config.')
+    parser.add_argument('--cpu_count', type=int, default=4,
+                        help='Number of CPU per trial (default: %(default)s)')
+    parser.add_argument('--gpu_count', type=int, default=1,
+                        help='Number of GPU per trial (default: %(default)s)')
+    parser.add_argument('--local_dir', default=os.getcwd(),
+                        help='Directory to save training results of tune (default: %(default)s)')
+    parser.add_argument('--num_samples', type=int, default=50,
+                        help='Number of running trials. If the search space is `grid_search`, the same grid will be repeated `num_samples` times. (default: %(default)s)')
+    parser.add_argument('--mode', default='max', choices=['min', 'max'],
+                        help='Determines whether objective is minimizing or maximizing the metric attribute. (default: %(default)s)')
+    parser.add_argument('--search_alg', default=None, choices=['basic_variant', 'bayesopt', 'optuna'],
+                        help='Search algorithms (default: %(default)s)')
+    args = parser.parse_args()
 
-"""Other args in the model config are viewed as resolved values that are ignored from tune.
-https://github.com/ray-project/ray/blob/34d3d9294c50aea4005b7367404f6a5d9e0c2698/python/ray/tune/suggest/variant_generator.py#L333
-"""
-model_config = init_model_config(args.config)
-model_config = init_search_params_spaces(model_config)
-search_alg = args.search_alg if args.search_alg else model_config.search_alg
-data = load_static_data(model_config)
+    """Other args in the model config are viewed as resolved values that are ignored from tune.
+    https://github.com/ray-project/ray/blob/34d3d9294c50aea4005b7367404f6a5d9e0c2698/python/ray/tune/suggest/variant_generator.py#L333
+    """
+    model_config = init_model_config(args.config)
+    model_config = init_search_params_spaces(model_config)
+    search_alg = args.search_alg if args.search_alg else model_config.search_alg
+    data = load_static_data(model_config)
 
-"""Run tune analysis.
-If no search algorithm is specified, the default search algorighm is BasicVariantGenerator.
-https://docs.ray.io/en/master/tune/api_docs/suggestion.html#tune-basicvariant
-"""
-all_monitor_metrics = [f'{split}_{metric}' for split, metric in itertools.product(
-    ['val', 'test'], model_config.monitor_metrics)]
-reporter = tune.CLIReporter(metric_columns=all_monitor_metrics)
-analysis = tune.run(
-    tune.with_parameters(Trainable, data=data),
-    # run one step "libmultilabel.model.train"
-    stop={"training_iteration": 1},
-    search_alg=init_search_algorithm(
-        search_alg, metric=model_config.val_metric, mode=args.mode),
-    local_dir=args.local_dir,
-    metric=f'val_{model_config.val_metric}',
-    mode=args.mode,
-    num_samples=args.num_samples,
-    resources_per_trial={
-        'cpu': args.cpu_count, 'gpu': args.gpu_count},
-    progress_reporter=reporter,
-    config=model_config)
+    """Run tune analysis.
+    If no search algorithm is specified, the default search algorighm is BasicVariantGenerator.
+    https://docs.ray.io/en/master/tune/api_docs/suggestion.html#tune-basicvariant
+    """
+    all_monitor_metrics = [f'{split}_{metric}' for split, metric in itertools.product(
+        ['val', 'test'], model_config.monitor_metrics)]
+    reporter = tune.CLIReporter(metric_columns=all_monitor_metrics)
+    analysis = tune.run(
+        tune.with_parameters(Trainable, data=data),
+        # run one step "libmultilabel.model.train"
+        stop={"training_iteration": 1},
+        search_alg=init_search_algorithm(
+            search_alg, metric=model_config.val_metric, mode=args.mode),
+        local_dir=args.local_dir,
+        metric=f'val_{model_config.val_metric}',
+        mode=args.mode,
+        num_samples=args.num_samples,
+        resources_per_trial={
+            'cpu': args.cpu_count, 'gpu': args.gpu_count},
+        progress_reporter=reporter,
+        config=model_config)
 
-columns = reporter._metric_columns + list(analysis.best_trial.evaluated_params.keys())
-results_df = analysis.results_df.sort_values(by=f'val_{model_config.val_metric}', ascending=False)
-results_df.columns = results_df.columns.str.replace('^config.', '')
-print(f'\n{results_df[columns].to_markdown()}\n')
+    columns = reporter._metric_columns + list(analysis.best_trial.evaluated_params.keys())
+    results_df = analysis.results_df.sort_values(by=f'val_{model_config.val_metric}', ascending=False)
+    results_df.columns = results_df.columns.str.replace('^config.', '')
+    print(f'\n{results_df[columns].to_markdown()}\n')
